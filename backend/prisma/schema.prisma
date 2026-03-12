@@ -18,9 +18,10 @@ model User {
 model Transaction {
   id          Int      @id @default(autoincrement())
   amount      Float
-  type        String   // "INCOME" or "EXPENSE"
-  category    String   // e.g., "Food", "Salary", "Rent"
-  description String?  
+  type        String
+  category    String
+  description String?
+  currency    String   @default("USD")
   date        DateTime @default(now())
   userId      Int
   user        User     @relation(fields: [userId], references: [id])

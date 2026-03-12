@@ -84,11 +84,13 @@ const authenticateToken = (req, res, next) => {
 // 1. Create a new transaction
 // Notice we added 'authenticateToken' as the middle argument
 app.post('/api/transactions', authenticateToken, async (req, res) => {
+  console.log("POST /api/transactions - Request body:", req.body);
   try {
-    const { amount, type, category, description } = req.body; // Removed userId from here
-    const userId = req.user.userId; // Extracted securely from the JWT token
+    const { amount, type, category, description, currency } = req.body; 
+    const userId = req.user.userId; 
 
     if (!amount || !type || !category) {
+      console.log("Validation failed: Missing required fields");
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -98,28 +100,32 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
         type,
         category,
         description,
-        userId: userId, // Use the secure ID
+        currency: currency || 'USD',
+        userId: userId,
       },
     });
 
+    console.log("Transaction created successfully:", newTransaction);
     res.status(201).json(newTransaction);
   } catch (error) {
-    console.error("Error creating transaction:", error);
-    res.status(500).json({ error: "Failed to create transaction" });
+    console.error("DEBUG: Detailed error creating transaction:", JSON.stringify(error, null, 2));
+    if (error.code === 'P2003') {
+      console.error("Foreign key constraint failed. userId:", req.user.userId);
+    }
+    res.status(500).json({ error: "Failed to create transaction", details: error.message });
   }
 });
 
 // 2. Get all transactions for the logged-in user
-// We no longer need the /:userId in the URL!
+// 2. Get all transactions for the logged-in user
 app.get('/api/transactions', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.userId; // Extracted securely from the JWT token
+  const userId = req.user.userId;
 
+  try {
     const transactions = await prisma.transaction.findMany({
       where: { userId: userId },
       orderBy: { date: 'desc' },
     });
-
     res.json(transactions);
   } catch (error) {
     console.error("Error fetching transactions:", error);
